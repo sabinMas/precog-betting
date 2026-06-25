@@ -49,3 +49,5 @@ next-env.d.ts
 # Private keys
 *.pem
 
+
+.vercel
