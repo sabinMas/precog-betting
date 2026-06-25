@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  watchlists      Watchlist[]
+  marketNotes     MarketNote[]
+  alertRules      AlertRule[]
+  savedCombos     SavedCombo[]
+  orderAuditLogs  OrderAuditLog[]
+  assistantThreads AssistantThread[]
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WatchlistItem[]
+}
+
+model WatchlistItem {
+  id          String   @id @default(cuid())
+  watchlistId String
+  ticker      String
+  title       String?
+  addedAt     DateTime @default(now())
+  notes       String?
+
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, ticker])
+}
+
+model MarketNote {
+  id        String   @id @default(cuid())
+  userId    String
+  ticker    String
+  content   String
+  thesis    String?
+  userProb  Float?   // user's estimated probability (0-1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ticker])
+}
+
+model AlertRule {
+  id          String      @id @default(cuid())
+  userId      String
+  ticker      String
+  type        AlertType
+  threshold   Float?      // price threshold for PRICE_ABOVE / PRICE_BELOW
+  isActive    Boolean     @default(true)
+  lastFiredAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum AlertType {
+  PRICE_ABOVE
+  PRICE_BELOW
+  SPREAD_TIGHTENS
+  SPREAD_WIDENS
+  VOLUME_SPIKE
+  EXPIRY_SOON
+}
+
+model SavedCombo {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  tickers     String[] // array of market tickers
+  sides       String[] // "yes" or "no" for each ticker
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OrderAuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  ticker      String
+  side        String   // "yes" or "no"
+  action      String   // "buy" or "sell"
+  count       Int
+  price       Float    // cents (0-100)
+  status      String   // "submitted" | "filled" | "rejected" | "cancelled"
+  kalshiId    String?  // order ID from Kalshi
+  errorMsg    String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AssistantThread {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AssistantMessage[]
+}
+
+model AssistantMessage {
+  id        String   @id @default(cuid())
+  threadId  String
+  role      String   // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+
+  thread AssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
